@@ -5,28 +5,18 @@ import string
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import io
 import time
-import hashlib
 import sys
 import logging
-from flask import Flask
 import os
-import threading
 
 # إخفاء جميع التحذيرات والرسائل
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 logging.getLogger('telebot').setLevel(logging.CRITICAL)
 logging.getLogger('requests').setLevel(logging.CRITICAL)
-logging.getLogger('werkzeug').setLevel(logging.CRITICAL)
 
-# تعطيل طباعة stdout و stderr
-class SilentOutput:
-    def write(self, text):
-        pass
-    def flush(self):
-        pass
-
-sys.stdout = SilentOutput()
-sys.stderr = SilentOutput()
+# تعطيل الطباعة
+sys.stdout = open(os.devnull, 'w')
+sys.stderr = open(os.devnull, 'w')
 
 BOT_TOKEN = "8535425056:AAEVNBjgq5tfeMfcLNLf9wCr-DJ7dlFEXrg"
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
@@ -444,32 +434,18 @@ def change_language_final(call):
     bot.delete_message(chat_id, call.message.message_id)
     show_countries(chat_id, lang)
 
-# ================== FLASK SERVER WITH POLLING ==================
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "البوت يعمل بصمت", 200
-
-@app.route('/health')
-def health():
-    return "OK", 200
-
-def run_bot_polling():
-    """تشغيل البوت بطريقة polling"""
-    while True:
-        try:
-            bot.infinity_polling(skip_pending=True, none_stop=True, interval=0, timeout=20)
-        except Exception:
-            time.sleep(5)
-            continue
-
 # ================== RUN ==================
 if __name__ == "__main__":
-    # تشغيل البوت في thread منفصل
-    bot_thread = threading.Thread(target=run_bot_polling, daemon=True)
-    bot_thread.start()
+    # حذف أي Webhook موجود
+    try:
+        bot.remove_webhook()
+    except:
+        pass
     
-    # تشغيل خادم Flask
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    # تشغيل البوت مع إعادة المحاولة عند الفشل
+    while True:
+        try:
+            bot.polling(none_stop=True, interval=0, timeout=20)
+        except Exception as e:
+            time.sleep(5)
+            continue
