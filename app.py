@@ -5,14 +5,16 @@ import string
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import io
 import time
-import sys
-import logging
 import os
+import logging
+from flask import Flask, request
+import sys
 
 # إخفاء جميع التحذيرات والرسائل
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 logging.getLogger('telebot').setLevel(logging.CRITICAL)
 logging.getLogger('requests').setLevel(logging.CRITICAL)
+logging.getLogger('werkzeug').setLevel(logging.CRITICAL)
 
 # تعطيل الطباعة
 sys.stdout = open(os.devnull, 'w')
@@ -20,6 +22,7 @@ sys.stderr = open(os.devnull, 'w')
 
 BOT_TOKEN = "8535425056:AAEVNBjgq5tfeMfcLNLf9wCr-DJ7dlFEXrg"
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+app = Flask(__name__)
 
 # ================== FORCED SUBSCRIPTION ==================
 CHANNEL_ID = -1003735672225
@@ -114,8 +117,8 @@ MESSAGES = {
         "refresh": "🔄 رقم جديد",
         "create_file": "📄 ملف 20 رقم",
         "request_code": "🔑 طلب الكود",
-        "telegram_bot": "💀 بوت اختـ.&-ـ ــ ـراق",
-        "contact_dev": "👨‍💻 تواصل مع المطور",
+        "telegram_bot": "🤖 بوت تلجرام",
+        "contact_dev": "📞 تواصل مع المطور",
         "must_join": "❌ عذراً، يجب عليك الاشتراك في القناة والمجموعة أولاً لاستخدام البوت.\n\n📢 يرجى الانضمام ثم الضغط على زر 'تحقق'.",
         "check_btn": "✅ تحقق",
         "join_channel": "📢 انضم للقناة",
@@ -135,8 +138,8 @@ MESSAGES = {
         "refresh": "🔄 New number",
         "create_file": "📄 20 numbers file",
         "request_code": "🔑 Request code",
-        "telegram_bot": "💀 Telegram Bot",
-        "contact_dev": "👨‍💻 Contact Developer",
+        "telegram_bot": "🤖 Telegram Bot",
+        "contact_dev": "📞 Contact Developer",
         "must_join": "❌ Sorry, you must join the channel and group first to use the bot.\n\n📢 Please join and then click the 'Check' button.",
         "check_btn": "✅ Check",
         "join_channel": "📢 Join Channel",
@@ -434,18 +437,46 @@ def change_language_final(call):
     bot.delete_message(chat_id, call.message.message_id)
     show_countries(chat_id, lang)
 
+# ================== FLASK WEBHOOK ==================
+@app.route('/')
+def home():
+    return "البوت يعمل بصمت", 200
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Invalid request', 403
+
+# ================== SET WEBHOOK ==================
+def setup_webhook():
+    """إعداد webhook للبوت"""
+    try:
+        # الرابط الخاص بتطبيقك على Render
+        RENDER_URL = "https://e-5v2u.onrender.com"
+        
+        # حذف أي webhook قديم
+        bot.remove_webhook()
+        time.sleep(1)
+        
+        # تعيين webhook جديد
+        bot.set_webhook(url=f"{RENDER_URL}/webhook")
+        return True
+    except Exception:
+        return False
+
 # ================== RUN ==================
 if __name__ == "__main__":
-    # حذف أي Webhook موجود
-    try:
-        bot.remove_webhook()
-    except:
-        pass
+    # إعداد webhook
+    setup_webhook()
     
-    # تشغيل البوت مع إعادة المحاولة عند الفشل
-    while True:
-        try:
-            bot.polling(none_stop=True, interval=0, timeout=20)
-        except Exception as e:
-            time.sleep(5)
-            continue
+    # تشغيل خادم Flask
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
