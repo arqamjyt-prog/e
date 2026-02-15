@@ -11,6 +11,7 @@ import logging
 from flask import Flask, request
 import threading
 import os
+import signal
 
 # إخفاء جميع التحذيرات والرسائل
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
@@ -42,6 +43,7 @@ used_numbers_pool = {}
 all_numbers_cache = {}
 USER_LANG = {}
 USER_CHECKED = {}
+bot_running = True
 
 # ================== DATA ==================
 DATA = {
@@ -124,8 +126,8 @@ MESSAGES = {
         "refresh": "🔄 رقم جديد",
         "create_file": "📄 ملف 20 رقم",
         "request_code": "🔑 طلب الكود",
-        "telegram_bot": "💀بوت اختـ.&-ـ ــ ـراق ",
-        "contact_dev": "👨‍💻 تواصل مع المطور",
+        "telegram_bot": "🤖 بوت تلجرام",
+        "contact_dev": "📞 تواصل مع المطور",
         "must_join": "❌ عذراً، يجب عليك الاشتراك في القناة والمجموعة أولاً لاستخدام البوت.\n\n📢 يرجى الانضمام ثم الضغط على زر 'تحقق'.",
         "check_btn": "✅ تحقق",
         "join_channel": "📢 انضم للقناة",
@@ -146,7 +148,7 @@ MESSAGES = {
         "create_file": "📄 20 numbers file",
         "request_code": "🔑 Request code",
         "telegram_bot": "🤖 Telegram Bot",
-        "contact_dev": "👨‍💻 Contact Developer",
+        "contact_dev": "📞 Contact Developer",
         "must_join": "❌ Sorry, you must join the channel and group first to use the bot.\n\n📢 Please join and then click the 'Check' button.",
         "check_btn": "✅ Check",
         "join_channel": "📢 Join Channel",
@@ -323,7 +325,7 @@ def show_countries(chat_id, lang):
     kb.add(
         InlineKeyboardButton(MESSAGES[lang]["change_lang"], callback_data="change_lang"),
         InlineKeyboardButton(MESSAGES[lang]["telegram_bot"], url="https://t.me/Almunharif13bot"),
-        InlineKeyboardButton(MESSAGES[lang]["contact_dev"], url="https://t.me/VlP_12")  # زر التواصل مع المطور
+        InlineKeyboardButton(MESSAGES[lang]["contact_dev"], url="https://t.me/VlP_12")
     )
     stats = get_stats(lang)
     bot.send_message(chat_id, f"{MESSAGES[lang]['choose_country']}\n\n{stats}", reply_markup=kb)
@@ -444,8 +446,11 @@ def change_language_final(call):
     bot.delete_message(chat_id, call.message.message_id)
     show_countries(chat_id, lang)
 
-# ================== FLASK SERVER ==================
+# ================== FLASK SERVER WITH WEBHOOK ==================
 app = Flask(__name__)
+
+# تعيين الـ Webhook
+WEBHOOK_URL = "https://e-5v2u.onrender.com"  # استخدم الرابط الذي أعطته Render
 
 @app.route('/')
 def home():
@@ -455,18 +460,31 @@ def home():
 def health():
     return "OK", 200
 
-# ================== BOT THREAD ==================
-def run_bot():
-    """تشغيل البوت في ثريد منفصل"""
-    bot.infinity_polling(skip_pending=True, none_stop=True, interval=0)
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Invalid request', 403
+
+# ================== تشغيل البوت ==================
+def setup_webhook():
+    """إعداد webhook للبوت"""
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        return True
+    except Exception:
+        return False
 
 # ================== RUN ==================
 if __name__ == "__main__":
-    # تشغيل البوت في ثريد منفصل
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
+    # إعداد webhook
+    setup_webhook()
     
     # تشغيل خادم Flask
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
