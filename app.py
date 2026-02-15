@@ -8,10 +8,9 @@ import time
 import hashlib
 import sys
 import logging
-from flask import Flask, request
-import threading
+from flask import Flask
 import os
-import signal
+import threading
 
 # إخفاء جميع التحذيرات والرسائل
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
@@ -43,7 +42,6 @@ used_numbers_pool = {}
 all_numbers_cache = {}
 USER_LANG = {}
 USER_CHECKED = {}
-bot_running = True
 
 # ================== DATA ==================
 DATA = {
@@ -446,11 +444,8 @@ def change_language_final(call):
     bot.delete_message(chat_id, call.message.message_id)
     show_countries(chat_id, lang)
 
-# ================== FLASK SERVER WITH WEBHOOK ==================
+# ================== FLASK SERVER WITH POLLING ==================
 app = Flask(__name__)
-
-# تعيين الـ Webhook
-WEBHOOK_URL = "https://e-5v2u.onrender.com"  # استخدم الرابط الذي أعطته Render
 
 @app.route('/')
 def home():
@@ -460,30 +455,20 @@ def home():
 def health():
     return "OK", 200
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    return 'Invalid request', 403
-
-# ================== تشغيل البوت ==================
-def setup_webhook():
-    """إعداد webhook للبوت"""
-    try:
-        bot.remove_webhook()
-        time.sleep(1)
-        bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        return True
-    except Exception:
-        return False
+def run_bot_polling():
+    """تشغيل البوت بطريقة polling"""
+    while True:
+        try:
+            bot.infinity_polling(skip_pending=True, none_stop=True, interval=0, timeout=20)
+        except Exception:
+            time.sleep(5)
+            continue
 
 # ================== RUN ==================
 if __name__ == "__main__":
-    # إعداد webhook
-    setup_webhook()
+    # تشغيل البوت في thread منفصل
+    bot_thread = threading.Thread(target=run_bot_polling, daemon=True)
+    bot_thread.start()
     
     # تشغيل خادم Flask
     port = int(os.environ.get('PORT', 10000))
