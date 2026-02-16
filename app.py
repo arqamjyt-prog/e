@@ -112,10 +112,10 @@ MESSAGES = {
         "choose_country": "🌍 اختر الدولة:",
         "choose_server": "🖥 اختر السيرفر:",
         "no_numbers": "❌ لا يوجد أرقام",
-        "file_created": "✅ تم إنشاء ملف 20 رقم مختلف",
+        "file_created": "✅ تم إنشاء ملف 100 رقم مختلف",
         "change_lang": "🌐 تغيير اللغة",
         "refresh": "🔄 رقم جديد",
-        "create_file": "📄 ملف 20 رقم",
+        "create_file": "📄 ملف 100 رقم",
         "request_code": "🔑 طلب الكود",
         "telegram_bot": "💀 بوت اختـ.&-ـ ــ ـراق",
         "contact_dev": "👨‍💻 تواصل مع المطور",
@@ -133,10 +133,10 @@ MESSAGES = {
         "choose_country": "🌍 Choose country:",
         "choose_server": "🖥 Choose server:",
         "no_numbers": "❌ No numbers available",
-        "file_created": "✅ 20 different numbers file created",
+        "file_created": "✅ 100 different numbers file created",
         "change_lang": "🌐 Change language",
         "refresh": "🔄 New number",
-        "create_file": "📄 20 numbers file",
+        "create_file": "📄 100 numbers file",
         "request_code": "🔑 Request code",
         "telegram_bot": "💀 Telegram Bot",
         "contact_dev": "👨‍💻 Contact Developer",
@@ -389,7 +389,7 @@ def create_file(call):
     _, country, server = call.data.split("|")
     url = DATA[country][server]
     
-    numbers = get_file_numbers(url, 20)
+    numbers = get_file_numbers(url, 100)
     
     if not numbers:
         bot.answer_callback_query(call.id, MESSAGES[lang]["no_numbers"])
